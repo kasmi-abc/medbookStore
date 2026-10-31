@@ -1,0 +1,298 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum ShippingType {
+  STOP_DESK
+  A_DOMICILE
+}
+
+enum PaymentMethod {
+  COD
+  CARD
+  CIB
+  EDAHABIA
+}
+
+enum StudyYear {
+  YEAR_1
+  YEAR_2
+  YEAR_3
+  YEAR_4
+  YEAR_5
+  YEAR_6
+  YEAR_7
+  INTERNSHIP
+  SPECIALIZATION
+  BOARD_PREP
+  CONTINUING_ED
+}
+
+enum BookCategory {
+  HUMAN_MEDICINE
+  DENTISTRY
+  PHARMACOLOGY
+  NURSING_ALLIED
+  PHYSICAL_THERAPY
+  LAB_SCIENCES
+  RADIOLOGY
+  BASIC_SCIENCES
+  INTERNAL_MEDICINE
+  SURGERY
+  PEDIATRICS
+  OBSTETRICS_GYNECOLOGY
+  OPHTHALMOLOGY
+  ENT
+  DERMATOLOGY
+  EMERGENCY_CRITICAL
+  PSYCHIATRY
+  BOARD_EXAMS
+  ATLASES_DICTIONARIES
+  POCKET_GUIDES
+  MEDICAL_DEVICES
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  nameAr      String
+  nameFr      String
+  icon        String   @default("BookOpen")
+  parentSlug  String?
+  parent      Category? @relation("CategoryHierarchy", fields: [parentSlug], references: [slug])
+  children    Category[] @relation("CategoryHierarchy")
+  books       Book[]
+  studyYear   StudyYear?
+  categoryType BookCategory?
+}
+
+model Publisher {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  nameAr    String
+  nameFr    String
+  logo      String?
+  website   String?
+  books     Book[]
+}
+
+model Series {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  nameAr      String
+  nameFr      String
+  description String  @db.Text
+  bundlePrice Int
+  oldPrice    Int?
+  cover       String?
+  books       Book[]
+}
+
+model Book {
+  id               String   @id @default(cuid())
+  title            String
+  titleAr          String
+  titleFr          String
+  slug             String   @unique
+  description      String   @db.Text
+  descriptionAr    String   @db.Text
+  descriptionFr    String   @db.Text
+  author           String
+  authorAr         String?
+  publisherId      String?
+  publisher        Publisher? @relation(fields: [publisherId], references: [id])
+  isbn             String?
+  edition          Int?     @default(1)
+  editionYear      Int?
+  pages            Int?
+  originLanguage   String   @default("English")
+  price            Int
+  oldPrice         Int?
+  discountPercent  Int?
+  formats          Json?
+  sampleText       String?  @db.Text
+  cover            String
+  categorySlug     String?
+  category         Category? @relation(fields: [categorySlug], references: [slug])
+  seriesId         String?
+  series           Series?  @relation(fields: [seriesId], references: [id])
+  seriesOrder      Int?
+  year             Int?
+  studyYear        StudyYear?
+  rating           Float    @default(0)
+  reviewsCount     Int      @default(0)
+  salesCount       Int      @default(0)
+  featured         Boolean  @default(false)
+  bestSeller       Boolean  @default(false)
+  isNew            Boolean  @default(false)
+  inStock          Boolean  @default(true)
+  quantity         Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  reviews          Review[]
+  orderItems       OrderItem[]
+  bundleItems      BundleItem[]
+  giftCardItems    GiftCardItem[]
+
+  @@index([categorySlug])
+  @@index([featured])
+  @@index([bestSeller])
+  @@index([isNew])
+  @@index([price])
+  @@index([rating])
+  @@index([seriesId])
+  @@index([publisherId])
+  @@index([studyYear])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  name      String
+  city      String?
+  stars     Int      @default(5)
+  comment   String   @db.Text
+  helpful   Int      @default(0)
+  verified  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([bookId])
+  @@index([createdAt])
+}
+
+model GiftCard {
+  id          String         @id @default(cuid())
+  code        String         @unique
+  amount      Int
+  message     String?
+  buyerName   String?
+  recipientEmail String?
+  isUsed      Boolean        @default(false)
+  usedAt      DateTime?
+  usedByOrder String?
+  createdAt   DateTime       @default(now())
+  expiresAt   DateTime?
+  items       GiftCardItem[]
+}
+
+model GiftCardItem {
+  id        String    @id @default(cuid())
+  giftCardId String
+  giftCard  GiftCard  @relation(fields: [giftCardId], references: [id], onDelete: Cascade)
+  bookId    String
+  book      Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  quantity  Int       @default(1)
+}
+
+model ShippingCompany {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String
+  nameFr      String
+  code        String   @unique
+  trackingUrl String?
+  phone       String?
+  email       String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Bundle {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  title       String
+  titleAr     String
+  titleFr     String
+  description String       @db.Text
+  price       Int
+  oldPrice    Int?
+  cover       String?
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  items       BundleItem[]
+}
+
+model BundleItem {
+  id       String  @id @default(cuid())
+  bundleId String
+  bundle   Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  bookId   String
+  book     Book    @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  order    Int     @default(0)
+}
+
+model Order {
+  id            String        @id @default(cuid())
+  code          String        @unique
+  customerName  String
+  phone         String
+  email         String?
+  wilaya        String
+  commune       String
+  address       String?
+  shippingType  ShippingType  @default(STOP_DESK)
+  paymentMethod PaymentMethod @default(COD)
+  itemsCount    Int           @default(0)
+  subtotal      Int
+  shippingFee   Int           @default(0)
+  discount      Int           @default(0)
+  promoCode     String?
+  total         Int
+  status        OrderStatus   @default(PENDING)
+  note          String?
+  giftMessage   String?
+  giftCardId    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  items         OrderItem[]
+
+  @@index([status])
+  @@index([phone])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id       String  @id @default(cuid())
+  orderId  String
+  order    Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  bookId   String?
+  book     Book?   @relation(fields: [bookId], references: [id], onDelete: SetNull)
+  title    String
+  titleAr  String?
+  format   String  @default("paperback")
+  price    Int
+  quantity Int
+  image    String?
+}
+
+model PromoCode {
+  code      String    @id
+  percent   Int
+  active    Boolean   @default(true)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model Newsletter {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
